@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">WhereAmI</string>
+    <string name="channel_name">Where Am I</string>
+    <string name="channel_description">Alert for new grid square</string>
+    <string name="size_2">2 Figure</string>
+    <string name="size_4">4 Figure</string>
+    <string name="size_6">6 Figure</string>
+    <string name="size_8">8 Figure</string>
+    <string name="size_10">10 Figure</string>
+</resources>
