@@ -3,29 +3,21 @@ package com.example.whereami;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.*;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.pm.ServiceInfo;
 import android.location.Location;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
-import android.widget.Toast;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
 import com.google.android.gms.location.*;
 import com.google.android.gms.tasks.Task;
 import org.jetbrains.annotations.NotNull;
-
 import java.util.HashSet;
-import java.util.concurrent.Executor;
 
 import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION;
 
@@ -33,16 +25,11 @@ public class NotificationService extends Service {
     private final String CHANNEL_ID = "where_am_i";
     private final int NOTIFICATION_ID = 1;
     private FusedLocationProviderClient fusedLocationClient;
-    private final HashSet<String> gridSquares = new HashSet<String>();
-    private String gridRef;
+    private final HashSet<String> gridSquares = new HashSet<>();
     static int figureSize;
 
     public static void setFigureSize(int fS) {
         figureSize = fS;
-    }
-
-    public String getGridRef() {
-        return gridRef;
     }
 
     @Override
@@ -75,9 +62,14 @@ public class NotificationService extends Service {
             return;
         }
         try {
-        Notification notification =
+            Intent activity = new Intent(this, LocationActivity.class);
+            activity.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            PendingIntent tapPendingIntent = PendingIntent.getActivity(this, 0, activity, PendingIntent.FLAG_IMMUTABLE);
+
+            Notification notification =
                 new NotificationCompat.Builder(this, CHANNEL_ID)
                         .setSmallIcon(R.drawable.notification_icon)
+                        .setContentIntent(tapPendingIntent)
                         .setContentTitle("Running in Background").build();
         int type = 0;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -85,13 +77,7 @@ public class NotificationService extends Service {
         }
         ServiceCompat.startForeground(this, 100, notification, type);
         getLocation();
-        } catch (Exception e) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                    e instanceof ForegroundServiceStartNotAllowedException
-            ) {
-                // App not in a valid state to start foreground service
-                // (e.g started from bg)
-            }
+        } catch (Exception ignored) {
         }
     }
 
@@ -142,6 +128,5 @@ public class NotificationService extends Service {
 
     @Override
     public void onDestroy() {
-
     }
 }

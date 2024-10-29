@@ -16,7 +16,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import com.google.android.gms.location.*;
 import org.jetbrains.annotations.NotNull;
-import java.util.HashSet;
 
 public class LocationActivity extends AppCompatActivity {
     public static FusedLocationProviderClient fusedLocationClient;
@@ -126,5 +125,11 @@ public class LocationActivity extends AppCompatActivity {
                 fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
             }
         });
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        stopService(new Intent(this, NotificationService.class));
     }
 }
