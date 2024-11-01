@@ -31,4 +31,13 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"/>
+    <Button
+            android:text="@string/reset_size"
+            android:textSize="30sp"
+            android:layout_width="130dp"
+            android:layout_height="130dp"
+            android:id="@+id/Button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -2,6 +2,7 @@ package com.example.whereami;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -123,6 +124,13 @@ public class LocationActivity extends AppCompatActivity {
                         .setWaitForAccurateLocation(false)
                         .setMaxUpdateDelayMillis(100).build();
                 fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
+            }
+        });
+        Context context = this;
+        this.<Button>findViewById(R.id.Button).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(context, LocationActivity.class));
             }
         });
     }
