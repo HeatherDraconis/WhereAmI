@@ -1,7 +1,6 @@
 package com.example.whereami;
 
 import org.jetbrains.annotations.NotNull;
-
 public class OSGridRef {
     private static final double phi0 = Math.toRadians(49);
     private static final double lambda0 = Math.toRadians(-2);
@@ -12,11 +11,35 @@ public class OSGridRef {
 
     private static final double a = 6_377_563.396;
     private static final double b = 6_356_256.909;
-    private static final double e2 = (Math.pow(a, 2) - Math.pow(b, 2)) / Math.pow(a, 2);
+    private static final double e2 = 1 - (b * b) / (a * a);
 
     private static final double n = (a - b) / (a + b);
+    private static final double n2 = n * n;
+    private static final double n3 = n * n * n;
 
-    public static String getGridRef(Double latitude, Double longitude, int figureSize) {
+    public static String getGridRef(double latitude, double longitude, int figureSize) {
+        double[] coordinates = doHelmertTransformation(Math.toRadians(latitude), Math.toRadians(longitude));
+
+        String E = String.valueOf((int) getE(coordinates[0], coordinates[1]));
+        String N = String.valueOf((int) getN(coordinates[0], coordinates[1]));
+        if (E.startsWith("-") || N.startsWith("-")) {
+            return "Location Not Found";
+        }
+
+        E = getSixDigits(E);
+        N = getSixDigits(N);
+
+        String letters = getLetters(E, N);
+        if (letters.isEmpty()) {
+            return "Location Not Found";
+        }
+        int digits = figureSize / 2;
+
+        return letters + E.substring(1, digits + 1) + N.substring(1, digits + 1);
+    }
+
+
+    public static String getGridRef2(double latitude, double longitude, int figureSize) {
         double phi = Math.toRadians(latitude);
         double lambda = Math.toRadians(longitude);
         String E = String.valueOf((int) getE(phi, lambda));
@@ -69,79 +92,128 @@ public class OSGridRef {
         return squares[Integer.parseInt(north)][Integer.parseInt(east)];
     }
 
-    static double getE(Double phi, Double lambda) {
+    static double getE(double phi, double lambda) {
         double IV = getIV(phi);
         double V = getV(phi);
         double VI = getVI(phi);
-        return E0 + IV * (lambda - lambda0) + V * Math.pow((lambda - lambda0), 3) + VI * Math.pow((lambda - lambda0), 5);
+        double lambdaDiff = lambda - lambda0;
+        double lambdaPow3 = lambdaDiff * lambdaDiff * lambdaDiff;
+        double lambdaPow5 = lambdaDiff * lambdaDiff * lambdaDiff * lambdaDiff * lambdaDiff;
+        return E0 + IV * lambdaDiff + V * lambdaPow3 + VI * lambdaPow5;
     }
 
-    static double getN(Double phi, Double lambda) {
+    static double getN(double phi, double lambda) {
         double I = getI(phi);
         double II = getII(phi);
         double III = getIII(phi);
         double IIIA = getIIIA(phi);
-        return I + II * Math.pow((lambda - lambda0), 2) + III * Math.pow((lambda - lambda0), 4) + IIIA * Math.pow((lambda - lambda0), 6);
+        return I + II * Math.pow(lambda - lambda0, 2) + III * Math.pow(lambda - lambda0, 4) + IIIA * Math.pow(lambda - lambda0, 6);
     }
 
-    static double getVI(Double phi) {
+    static double getVI(double phi) {
         double nu = getNu(phi);
         double eta2 = getEtaSquared(phi);
         return (nu / 120) * Math.pow(Math.cos(phi), 5) * (5 - 18 * Math.pow(Math.tan(phi), 2) + Math.pow(Math.tan(phi), 4) + 14 * eta2 - 58 * Math.pow(Math.tan(phi), 2) * eta2);
     }
 
-    static double getV(Double phi) {
+    static double getV(double phi) {
         double nu = getNu(phi);
         double rho = getRho(phi);
         return (nu / 6) * Math.pow(Math.cos(phi), 3) * ((nu / rho) - Math.pow(Math.tan(phi), 2));
     }
 
-    static double getIV(Double phi) {
+    static double getIV(double phi) {
         double nu = getNu(phi);
         return nu * Math.cos(phi);
     }
 
-    static double getIIIA(Double phi) {
+    static double getIIIA(double phi) {
         double nu = getNu(phi);
         return (nu / 720) * Math.sin(phi) * Math.pow(Math.cos(phi), 5) * (61 - 58 * Math.pow(Math.tan(phi), 2) + Math.pow(Math.tan(phi), 4));
     }
 
-    static double getIII(Double phi) {
+    static double getIII(double phi) {
         double nu = getNu(phi);
         double eta2 = getEtaSquared(phi);
         return (nu / 24) * Math.sin(phi) * Math.pow(Math.cos(phi), 3) * (5 - Math.pow(Math.tan(phi), 2) + 9 * eta2);
     }
 
-    static double getII(Double phi) {
+    static double getII(double phi) {
         double nu = getNu(phi);
         return (nu / 2) * Math.sin(phi) * Math.cos(phi);
     }
 
-    static double getI(Double phi) {
+    static double getI(double phi) {
         double M = getM(phi);
         return M + N0;
     }
 
-    static double getM(Double phi) {
+    static double getM(double phi) {
         return b * F0 * (
-                (1 + n + (5d / 4) * Math.pow(n, 2) + (5d / 4) * Math.pow(n, 3)) * (phi - phi0)
-                        - (3 * n + 3 * Math.pow(n, 2) + (21d / 8) * Math.pow(n, 3)) * Math.sin(phi - phi0) * Math.cos(phi + phi0)
-                        + ((15d / 8) * Math.pow(n, 2) + (15d / 8) * Math.pow(n, 3)) * Math.sin(2 * (phi - phi0)) * Math.cos(2 * (phi + phi0))
-                        - (35d / 24) * Math.pow(n, 3) * Math.sin(3 * ( phi - phi0)) * Math.cos(3 * (phi + phi0))
+                (1 + n + (5d / 4) * n2 + (5d / 4) * n3) * (phi - phi0)
+                        - (3 * n + 3 * n2 + (21d / 8) * n3) * Math.sin(phi - phi0) * Math.cos(phi + phi0)
+                        + ((15d / 8) * n2 + (15d / 8) * n3) * Math.sin(2 * (phi - phi0)) * Math.cos(2 * (phi + phi0))
+                        - (35d / 24) * n3 * Math.sin(3 * (phi - phi0)) * Math.cos(3 * (phi + phi0))
         );
     }
 
-    static double getEtaSquared(Double phi) {
+    static double getEtaSquared(double phi) {
         double nu = getNu(phi);
         double rho = getRho(phi);
         return (nu / rho) - 1;
     }
 
-    static double getRho(Double phi) {
-        return a * F0 * (1 - e2) * (1 - e2 * Math.pow((1 - e2 * Math.sin(phi)), -1.5));
+    static double getRho(double phi) {
+        return a * F0 * (1 - e2) * Math.pow(1 - e2 * Math.pow(Math.sin(phi), 2), -1.5);
     }
 
-    static double getNu(Double phi) {
-        return a * F0 * (1 - e2 * Math.pow((1 - e2 * Math.sin(phi)), -0.5));
+    static double getNu(double phi) {
+        return a * F0 * Math.pow(1 - e2 * Math.pow(Math.sin(phi), 2), -0.5);
+    }
+
+    static double[] getCartesian(double phi, double lambda) {
+        double a = 6_378_137.000;
+        double b = 6_356_752.3141;
+        double e2 = 1 - (b * b) / (a * a);
+        double F0 = 0.9996;
+
+        double nu = a * F0 * Math.pow(1 - e2 * Math.pow(Math.sin(phi), 2), -0.5);
+        double H = 299.800;
+        double x = (nu + H) * Math.cos(phi) * Math.cos(lambda);
+        double y = (nu + H) * Math.cos(phi) * Math.sin(lambda);
+        double z = ((1 - e2) * nu + H) * Math.sin(phi);
+        return new double[]{x, y, z};
+    }
+
+    static double[] getLatLong(double x, double y, double z) {
+        double phi = Math.atan(z / (Math.sqrt(x * x + y * y) * (1 - e2)));
+        phi = Math.atan((z + e2 * getNu(phi) * Math.sin(phi)) * Math.pow(x * x + y * y, -0.5));
+        double lambda = Math.atan(y / x);
+        return new double[]{phi, lambda};
+    }
+
+    static double[] doHelmertTransformation(double phi, double lambda) {
+        double[] cart = getCartesian(phi, lambda);
+        double second = Math.PI / (180 * 60 * 60);
+        double tx = -446.448;
+        double ty = 125.157;
+        double tz = -542.060;
+        double s = 20.4894 / 1_000_000;
+        double rx = -0.1502 * second;
+        double ry = -0.2470 * second;
+        double rz = -0.8421 * second;
+        double a1 = 1 + s;
+        double a2 = -rz;
+        double a3 = ry;
+        double b1 = rz;
+        double b2 = 1 + s;
+        double b3 = -rx;
+        double c1 = -ry;
+        double c2 = rx;
+        double c3 = 1 + s;
+        double x = tx + a1 * cart[0] + a2 * cart[1] + a3 * cart[2];
+        double y = ty + b1 * cart[0] + b2 * cart[1] + b3 * cart[2];
+        double z = tz + c1 * cart[0] + c2 * cart[1] + c3 * cart[2];
+        return getLatLong(x, y, z);
     }
 }
