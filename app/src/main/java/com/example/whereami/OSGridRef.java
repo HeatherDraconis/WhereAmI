@@ -1,6 +1,11 @@
 package com.example.whereami;
 
 import org.jetbrains.annotations.NotNull;
+
+/**
+ * Implements lat/long to os grid ref according to:
+ * https://www.ordnancesurvey.co.uk/documents/resources/guide-coordinate-systems-great-britain.pdf
+ */
 public class OSGridRef {
     private static final double phi0 = Math.toRadians(49);
     private static final double lambda0 = Math.toRadians(-2);
@@ -22,28 +27,18 @@ public class OSGridRef {
 
         String E = String.valueOf((int) getE(coordinates[0], coordinates[1]));
         String N = String.valueOf((int) getN(coordinates[0], coordinates[1]));
-        if (E.startsWith("-") || N.startsWith("-")) {
-            return "Location Not Found";
-        }
-
-        E = getSixDigits(E);
-        N = getSixDigits(N);
-
-        String letters = getLetters(E, N);
-        if (letters.isEmpty()) {
-            return "Location Not Found";
-        }
-        int digits = figureSize / 2;
-
-        return letters + E.substring(1, digits + 1) + N.substring(1, digits + 1);
+        return doGetGridRef(figureSize, E, N);
     }
-
 
     public static String getGridRef2(double latitude, double longitude, int figureSize) {
         double phi = Math.toRadians(latitude);
         double lambda = Math.toRadians(longitude);
         String E = String.valueOf((int) getE(phi, lambda));
         String N = String.valueOf((int) getN(phi, lambda));
+        return doGetGridRef(figureSize, E, N);
+    }
+
+    private static @NotNull String doGetGridRef(int figureSize, String E, String N) {
         if (E.startsWith("-") || N.startsWith("-")) {
             return "Location Not Found";
         }
@@ -57,7 +52,7 @@ public class OSGridRef {
         }
         int digits = figureSize / 2;
 
-        return letters + E.substring(1, digits + 1) + N.substring(1, digits + 1);
+        return letters + " " + E.substring(1, digits + 1) + " " + N.substring(1, digits + 1);
     }
 
     static @NotNull String getSixDigits(String number) {
@@ -192,28 +187,33 @@ public class OSGridRef {
         return new double[]{phi, lambda};
     }
 
+    /**
+     * c.f. p36
+     */
     static double[] doHelmertTransformation(double phi, double lambda) {
         double[] cart = getCartesian(phi, lambda);
         double second = Math.PI / (180 * 60 * 60);
-        double tx = -446.448;
-        double ty = 125.157;
-        double tz = -542.060;
+        double[] t = new double[]{-446.448, 125.157, -542.060};
         double s = 20.4894 / 1_000_000;
         double rx = -0.1502 * second;
         double ry = -0.2470 * second;
         double rz = -0.8421 * second;
-        double a1 = 1 + s;
-        double a2 = -rz;
-        double a3 = ry;
-        double b1 = rz;
-        double b2 = 1 + s;
-        double b3 = -rx;
-        double c1 = -ry;
-        double c2 = rx;
-        double c3 = 1 + s;
-        double x = tx + a1 * cart[0] + a2 * cart[1] + a3 * cart[2];
-        double y = ty + b1 * cart[0] + b2 * cart[1] + b3 * cart[2];
-        double z = tz + c1 * cart[0] + c2 * cart[1] + c3 * cart[2];
-        return getLatLong(x, y, z);
+        double[][] h = new double[][]
+                {{1 + s, -rz, ry},
+                {rz, 1 + s, -rx},
+                {-ry, rx, 1 + s}};
+        double[] result = add(multiply(h, cart), t);
+        return getLatLong(result[0], result[1], result[2]);
+    }
+
+    private static double @NotNull [] multiply(double[][] matrix, double[] colVector) {
+        return new double[]{
+                matrix[0][0] * colVector[0] + matrix[0][1] * colVector[1] + matrix[0][2] * colVector[2],
+                matrix[1][0] * colVector[0] + matrix[1][1] * colVector[1] + matrix[1][2] * colVector[2],
+                matrix[2][0] * colVector[0] + matrix[2][1] * colVector[1] + matrix[2][2] * colVector[2]};
+    }
+
+    private static double[] add(double[] a, double[] b) {
+        return new double[]{a[0] + b[0], a[1] + b[1], a[2] + b[2]};
     }
 }

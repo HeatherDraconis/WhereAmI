@@ -20,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class LocationActivity extends AppCompatActivity {
     public static FusedLocationProviderClient fusedLocationClient;
-    private TextView locationTextView;
+    private TextView locationTextView, locationFullTextView;
     private int figureSize;
 
     ActivityResultLauncher<String[]> locationPermissionRequest =
@@ -107,14 +107,17 @@ public class LocationActivity extends AppCompatActivity {
             startService(new Intent(this, NotificationService.class));
         }
         locationTextView = findViewById(R.id.location);
+        locationFullTextView = findViewById(R.id.location_full);
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener(this, location -> {
             if (location != null) {
                 locationTextView.setText(String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), figureSize)));
+                locationFullTextView.setText(String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), 10)));
                 LocationCallback locationCallback = new LocationCallback() {
                     @Override
                     public void onLocationResult(@NotNull LocationResult locationResult) {
                         for (Location location : locationResult.getLocations()) {
                             locationTextView.setText(String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), figureSize)));
+                            locationFullTextView.setText(String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), 10)));
                         }
                     }
                 };
