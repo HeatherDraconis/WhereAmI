@@ -5,10 +5,12 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.*;
 import android.location.Location;
 import android.os.*;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
@@ -18,10 +20,20 @@ import androidx.core.app.ActivityCompat;
 import com.google.android.gms.location.*;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashSet;
+
+import static android.graphics.Color.rgb;
+
 public class LocationActivity extends AppCompatActivity {
     public static FusedLocationProviderClient fusedLocationClient;
     private TextView locationTextView, locationFullTextView;
-    private int figureSize;
+    private ImageView mapImageView;
+    static int figureSize, scale;
+    private final HashSet<String> gridSquares = new HashSet<>();
+    private final int side = 250;
+    private final int boarder = 3;
+    Bitmap bitmap;
+    Canvas canvas;
 
     ActivityResultLauncher<String[]> locationPermissionRequest =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(),
@@ -56,19 +68,11 @@ public class LocationActivity extends AppCompatActivity {
     }
 
     private void getFigureSize() {
-        this.<Button>findViewById(R.id.Button2).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                figureSize = 2;
-                NotificationService.setFigureSize(2);
-                showLocation();
-            }
-        });
         this.<Button>findViewById(R.id.Button4).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 figureSize = 4;
-                NotificationService.setFigureSize(4);
+                scale = 1_000;
                 showLocation();
             }
         });
@@ -76,7 +80,7 @@ public class LocationActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 figureSize = 6;
-                NotificationService.setFigureSize(6);
+                scale = 100;
                 showLocation();
             }
         });
@@ -84,15 +88,7 @@ public class LocationActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 figureSize = 8;
-                NotificationService.setFigureSize(8);
-                showLocation();
-            }
-        });
-        this.<Button>findViewById(R.id.Button10).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                figureSize = 10;
-                NotificationService.setFigureSize(10);
+                scale = 10;
                 showLocation();
             }
         });
@@ -108,16 +104,17 @@ public class LocationActivity extends AppCompatActivity {
         }
         locationTextView = findViewById(R.id.location);
         locationFullTextView = findViewById(R.id.location_full);
+
+        mapImageView = findViewById(R.id.map);
+
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener(this, location -> {
             if (location != null) {
-                locationTextView.setText(String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), figureSize)));
-                locationFullTextView.setText(String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), 10)));
+                getLocation(location);
                 LocationCallback locationCallback = new LocationCallback() {
                     @Override
                     public void onLocationResult(@NotNull LocationResult locationResult) {
                         for (Location location : locationResult.getLocations()) {
-                            locationTextView.setText(String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), figureSize)));
-                            locationFullTextView.setText(String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), 10)));
+                            getLocation(location);
                         }
                     }
                 };
@@ -136,6 +133,64 @@ public class LocationActivity extends AppCompatActivity {
                 startActivity(new Intent(context, LocationActivity.class));
             }
         });
+    }
+
+    private void getLocation(Location location) {
+        String gridRefLarge = String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), figureSize));
+        locationTextView.setText(gridRefLarge);
+        String gridRefSmall = String.format(OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), 10));
+        locationFullTextView.setText(gridRefSmall);
+
+        if (gridSquares.add(gridRefSmall)) {
+            bitmap = Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888);
+            canvas = new Canvas(bitmap);
+
+            Paint circlePaint = new Paint();
+            circlePaint.setStyle(Paint.Style.FILL);
+            circlePaint.setAntiAlias(true);
+            float radius = (float) side / (scale * 2) > 5 ? (float) side / (scale * 2) : 5;
+
+            int minE = (Integer.parseInt(gridRefLarge.split(" ")[1])) * scale - (int) (boarder * 0.1 * scale);
+            int maxE = (Integer.parseInt(gridRefLarge.split(" ")[1]) + 1) * scale + (int) (boarder * 0.1 * scale);;
+            int minN = Integer.parseInt(gridRefLarge.split(" ")[2]) * scale - (int) (boarder * 0.1 * scale);;
+            int maxN = (Integer.parseInt(gridRefLarge.split(" ")[2]) + 1) * scale + (int) (boarder * 0.1 * scale);;
+
+            circlePaint.setColor(Color.GRAY);
+            for (String gridSquare: gridSquares) {
+                float e = (float) (Integer.parseInt(gridSquare.split(" ")[1]) - minE) * side / (maxE - minE);
+                float n = side - (float) (Integer.parseInt(gridSquare.split(" ")[2]) - minN) * side / (maxN - minN);
+                canvas.drawCircle(e, n, radius, circlePaint);
+            }
+
+            setMap();
+
+            circlePaint.setColor(rgb(103,80,163));
+            float e = (float) (Integer.parseInt(gridRefSmall.split(" ")[1]) - minE) * side / (maxE - minE);
+            float n = side - (float) (Integer.parseInt(gridRefSmall.split(" ")[2]) - minN) * side / (maxN - minN);
+            canvas.drawCircle(e, n, radius, circlePaint);
+
+            mapImageView.setImageBitmap(bitmap);
+        }
+    }
+
+    private void setMap() {
+        Path path = new Path();
+        Paint paint = new Paint();
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setAntiAlias(true);
+        paint.setColor(Color.BLACK);
+        paint.setStrokeWidth((float) side / (scale * 2) > 5 ? (float) side / (scale * 2) : 5);
+        float same = (float) (boarder * side / 16);
+        path.moveTo(0, same);
+        path.lineTo(side, same);
+        path.moveTo(0, side - same);
+        path.lineTo(250, side - same);
+        path.moveTo(same, 0);
+        path.lineTo(same, 250);
+        path.moveTo(side - same, 0);
+        path.lineTo(side - same, 250);
+        canvas.drawPath(path, paint);
+        mapImageView.setImageBitmap(bitmap);
     }
 
     @Override

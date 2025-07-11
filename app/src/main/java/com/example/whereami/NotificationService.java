@@ -26,11 +26,6 @@ public class NotificationService extends Service {
     private final int NOTIFICATION_ID = 1;
     private FusedLocationProviderClient fusedLocationClient;
     private final HashSet<String> gridSquares = new HashSet<>();
-    static int figureSize;
-
-    public static void setFigureSize(int fS) {
-        figureSize = fS;
-    }
 
     @Override
     public void onCreate() {
@@ -89,14 +84,14 @@ public class NotificationService extends Service {
 
         task.addOnSuccessListener(location -> {
             if (location != null) {
-                String gridRefInitial = OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), figureSize);
+                String gridRefInitial = OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), LocationActivity.figureSize);
                 gridSquares.add(gridRefInitial);
                 notificationManager.notify(NOTIFICATION_ID, getNotification(gridRefInitial));
                 LocationCallback locationCallback = new LocationCallback() {
                     @Override
                     public void onLocationResult(@NotNull LocationResult locationResult) {
                         for (Location location : locationResult.getLocations()) {
-                            String gridRef = OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), figureSize);
+                            String gridRef = OSGridRef.getGridRef(location.getLatitude(), location.getLongitude(), LocationActivity.figureSize);
                             if (gridSquares.add(gridRef)) {
                                 notificationManager.notify(NOTIFICATION_ID, getNotification(gridRef));
                             }
