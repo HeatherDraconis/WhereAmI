@@ -170,19 +170,18 @@ public class OSGridRef {
         double a = 6_378_137.000;
         double b = 6_356_752.3141;
         double e2 = 1 - (b * b) / (a * a);
-        double F0 = 0.9996;
 
-        double nu = a * F0 * Math.pow(1 - e2 * Math.pow(Math.sin(phi), 2), -0.5);
-        double H = 299.800;
-        double x = (nu + H) * Math.cos(phi) * Math.cos(lambda);
-        double y = (nu + H) * Math.cos(phi) * Math.sin(lambda);
-        double z = ((1 - e2) * nu + H) * Math.sin(phi);
+        double nu = a * Math.pow(1 - e2 * Math.pow(Math.sin(phi), 2), -0.5);
+        double x = nu * Math.cos(phi) * Math.cos(lambda);
+        double y = nu * Math.cos(phi) * Math.sin(lambda);
+        double z = (1 - e2) * nu * Math.sin(phi);
         return new double[]{x, y, z};
     }
 
     static double[] getLatLong(double x, double y, double z) {
         double phi = Math.atan(z / (Math.sqrt(x * x + y * y) * (1 - e2)));
-        phi = Math.atan((z + e2 * getNu(phi) * Math.sin(phi)) * Math.pow(x * x + y * y, -0.5));
+        double nu = a * Math.pow(1 - e2 * Math.pow(Math.sin(phi), 2), -0.5);
+        phi = Math.atan((z + e2 * nu * Math.sin(phi)) * Math.pow(x * x + y * y, -0.5));
         double lambda = Math.atan(y / x);
         return new double[]{phi, lambda};
     }
